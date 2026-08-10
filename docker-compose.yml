@@ -1,0 +1,53 @@
+# Local dev: `docker compose up n8n`
+# GPU server:  `docker compose --profile serving up` (requires NVIDIA runtime)
+# Langfuse is run separately via its official compose — see docs/local-dev.md.
+
+services:
+  vllm:
+    image: vllm/vllm-openai:latest
+    profiles: ["serving"]
+    command: >
+      --model ${LLM_MODEL:-scb10x/llama3.1-typhoon2-8b-instruct}
+      --max-model-len 8192
+    ports:
+      - "8001:8000"
+    volumes:
+      - hf_cache:/root/.cache/huggingface
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  vllm-embed:
+    image: vllm/vllm-openai:latest
+    profiles: ["serving"]
+    command: >
+      --model ${EMBED_MODEL:-BAAI/bge-m3}
+      --task embed
+    ports:
+      - "8002:8000"
+    volumes:
+      - hf_cache:/root/.cache/huggingface
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  n8n:
+    image: n8nio/n8n:latest
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_SECURE_COOKIE=false
+    volumes:
+      - n8n_data:/home/node/.n8n
+
+volumes:
+  hf_cache:
+  n8n_data:
