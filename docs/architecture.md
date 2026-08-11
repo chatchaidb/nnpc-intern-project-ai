@@ -22,7 +22,7 @@ Users / internal staff
 
 | Component | Where it runs | Port | Notes |
 |---|---|---|---|
-| vLLM — chat model | On-prem AI server (GPU) | 8001 | Typhoon2-8B or Qwen2.5, OpenAI-compatible API |
+| vLLM — chat model | On-prem AI server (GPU) | 8001 | Qwen3-8B (default), Typhoon2-8B or Qwen2.5, OpenAI-compatible API |
 | vLLM — embeddings | On-prem AI server (GPU) | 8002 | `BAAI/bge-m3`, `--task embed` |
 | FastAPI backend | server / local dev | 8000 | Agent definitions, LLM & embedding clients, Langfuse tracing |
 | Next.js frontend | server / local dev | 3000 | Internal chat UI with agent selector |

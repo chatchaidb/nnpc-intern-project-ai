@@ -7,7 +7,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=(".env", "../.env"), extra="ignore")
 
     llm_base_url: str = "http://localhost:8001/v1"
-    llm_model: str = "scb10x/llama3.1-typhoon2-8b-instruct"
+    llm_model: str = "Qwen/Qwen3-8B"
     llm_api_key: str = "dummy"
 
     embed_base_url: str = "http://localhost:8002/v1"

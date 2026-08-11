@@ -13,7 +13,7 @@ Local setup: [docs/local-dev.md](docs/local-dev.md)
 
 | Layer | Choice |
 |---|---|
-| LLM serving | vLLM on the on-prem AI server — Typhoon2-8B (Thai) or Qwen2.5, switchable via env |
+| LLM serving | vLLM on the on-prem AI server — Qwen3-8B default; Typhoon2-8B (Thai) and Qwen2.5 switchable via env |
 | Embeddings | bge-m3 via vLLM `--task embed` (model comparison pending) |
 | Vector DB | Skipped for MVP |
 | Backend | FastAPI (`backend/`) |
