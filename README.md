@@ -13,9 +13,9 @@ Local setup: [docs/local-dev.md](docs/local-dev.md)
 
 | Layer | Choice |
 |---|---|
-| LLM serving | vLLM on the on-prem AI server — Qwen3-8B default; Typhoon2-8B (Thai) and Qwen2.5 switchable via env |
-| Embeddings | bge-m3 via vLLM `--task embed` (model comparison pending) |
-| Vector DB | Skipped for MVP |
+| LLM serving | Ollama on the on-prem AI server — `scb10x/llama3.1-typhoon2-8b-instruct:latest`. vLLM also runs on the server (`:8010`) serving the same Typhoon model |
+| Embeddings | `qwen3-embedding:latest` via Ollama |
+| Vector DB | Qdrant — in use. Dev collection `nnpc_docs` (tenant-tagged); the server's `nnpc_kb` is empty and currently unused |
 | Backend | FastAPI (`backend/`) |
 | Frontend | Next.js (`frontend/`) |
 | Workflows / integrations | n8n (`n8n/`) — LINE OA, email, Notion, human-approval flows |
@@ -54,8 +54,9 @@ docker compose --profile serving up
 | Service | Port |
 |---|---|
 | FastAPI backend | 8000 |
-| vLLM chat model | 8001 |
-| vLLM embeddings (bge-m3) | 8002 |
+| Ollama — chat + embeddings (server) | 11434 |
+| vLLM — chat (server) | 8010 |
+| Qdrant | 6333 |
 | Next.js frontend | 3000 |
 | Langfuse | 3001 |
 | n8n | 5678 |

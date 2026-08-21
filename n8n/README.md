@@ -29,3 +29,31 @@ keep it that way, and recreate credentials by hand on each instance.
   step during MVP — no workflow may go webhook → LLM → send directly.
 - Call the local backend from the n8n container via
   `http://host.docker.internal:8000`.
+
+## Current workflows (RAG prototype)
+
+Two exported workflows live in this folder. They are the working CS prototype
+and they call Ollama and Qdrant **directly**, not through the FastAPI backend —
+so they do not follow the "n8n never talks to the model directly" convention
+above. Treat that convention as describing the intended end state, not today.
+
+- **`nnpc-ingestion-v2.json`** — manual trigger. Reads `.txt` files from an
+  inbox folder, chunks them (400/50), embeds with `qwen3-embedding:latest`, and
+  inserts into the Qdrant collection `nnpc_docs` tagged `tenant: nnpc`.
+- **`nnpc-cs-v5.json`** — chat/webhook in → normalize → AI agent (Typhoon2,
+  temperature 0.2) with `nnpc_docs` as a retrieval tool → escalation check →
+  reply. Tenant is read from the request and used as a Qdrant filter.
+
+### Credentials to create by hand
+
+n8n exports reference credentials by name only, so on each instance create:
+Ollama (chat + embeddings), Qdrant, and — only if you enable the disabled nodes
+below — Postgres and Gmail.
+
+### Nodes that ship disabled
+
+`Gmail Approval`, `Log Approval`, and `Log Escalation` are exported with
+`disabled: true`. **With them disabled, drafts flow straight to the reply
+marked `status: approved` without any human seeing them.** Enable the Gmail node
+and set a real approver address before this touches a customer. The approver
+address is a placeholder in the export — replace it locally, never commit one.

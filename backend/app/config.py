@@ -6,12 +6,12 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=(".env", "../.env"), extra="ignore")
 
-    llm_base_url: str = "http://localhost:8001/v1"
-    llm_model: str = "Qwen/Qwen3-8B"
+    llm_base_url: str = "http://localhost:11434/v1"
+    llm_model: str = "scb10x/llama3.1-typhoon2-8b-instruct:latest"
     llm_api_key: str = "dummy"
 
-    embed_base_url: str = "http://localhost:8002/v1"
-    embed_model: str = "BAAI/bge-m3"
+    embed_base_url: str = "http://localhost:11434/v1"
+    embed_model: str = "qwen3-embedding:latest"
 
     langfuse_public_key: str = ""
     langfuse_secret_key: str = ""

@@ -1,0 +1,541 @@
+{
+  "name": "NNPC Customer Service Agent (all server models)",
+  "nodes": [
+    {
+      "parameters": {
+        "public": true,
+        "mode": "webhook",
+        "options": {
+          "responseMode": "lastNode",
+          "title": "NNPC Customer Service",
+          "subtitle": "ถามเกี่ยวกับบริการของ NNPC ได้เลย",
+          "inputPlaceholder": "พิมพ์คำถามที่นี่..."
+        }
+      },
+      "id": "chat-trigger",
+      "name": "Chat Trigger",
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -460,
+        -120
+      ],
+      "webhookId": "nnpc-cs-chat"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "cs-inbound",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -460,
+        100
+      ],
+      "webhookId": "nnpc-cs-inbound"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a1",
+              "name": "question",
+              "value": "={{ $json.chatInput || $json.body?.question || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "a2",
+              "name": "tenant",
+              "value": "={{ $json.body?.tenant || 'nnpc' }}",
+              "type": "string"
+            },
+            {
+              "id": "a3",
+              "name": "customer_email",
+              "value": "={{ $json.body?.customer_email || 'chat-user' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": false,
+        "options": {}
+      },
+      "id": "normalize-input",
+      "name": "Normalize Input",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -220,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.question }}",
+        "options": {
+          "systemMessage": "คุณเป็นผู้ช่วยฝ่ายบริการลูกค้าของ N/NPC\n\nคุณไม่มีความรู้เกี่ยวกับ NNPC ด้วยตัวเอง ห้ามตอบจากความรู้ทั่วไปหรือการคาดเดาโดยเด็ดขาด\n\nทุกครั้งก่อนตอบ ต้องค้นหาจากเครื่องมือ nnpc_knowledge_base ก่อนเสมอ และตอบโดยใช้เฉพาะข้อมูลที่ได้จากเครื่องมือนั้นเท่านั้น\n\nถ้าเครื่องมือไม่คืนข้อมูลที่เกี่ยวข้อง ให้ตอบเพียงคำว่า NEED_HUMAN เท่านั้น ห้ามขอโทษ ห้ามอธิบาย ห้ามเสนอทางเลือกอื่น\n\nห้ามแต่งราคา ที่อยู่ เบอร์โทร วันเวลาทำการ หรือเงื่อนไขสัญญาขึ้นเองโดยเด็ดขาด\n\nตอบเป็นภาษาเดียวกับที่ลูกค้าถาม และตอบสั้นกระชับไม่เกิน 100 คำ\n\nYou are a customer service assistant for N/NPC. You have no knowledge of NNPC yourself. Always search the nnpc_knowledge_base tool before answering and use only what it returns. If it returns nothing relevant, reply with exactly: NEED_HUMAN — no apology, no explanation. Never invent prices, addresses, phone numbers, business hours, or contract terms. Reply in the same language the customer used. Keep answers under 100 words."
+        }
+      },
+      "id": "ai-agent",
+      "name": "AI Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        20,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "model": "scb10x/llama3.1-typhoon2-8b-instruct:latest",
+        "options": {
+          "temperature": 0.2
+        }
+      },
+      "id": "typhoon-model",
+      "name": "Typhoon2 (server)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolName": "nnpc_knowledge_base",
+        "toolDescription": "ค้นหาข้อมูลบริการ NNPC จากคลังความรู้ ใช้ทุกครั้งก่อนตอบคำถามลูกค้า / Search the NNPC knowledge base for services, target customers, engagement model and contact information. Use before answering any question.",
+        "qdrantCollection": {
+          "__rl": true,
+          "value": "nnpc_docs",
+          "mode": "id"
+        },
+        "topK": 4,
+        "options": {
+          "searchFilterJson": "={\"must\":[{\"key\":\"metadata.tenant\",\"match\":{\"value\":\"{{ $('Normalize Input').item.json.tenant }}\"}}]}"
+        }
+      },
+      "id": "qdrant-tool",
+      "name": "Qdrant Vector Store",
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreQdrant",
+      "typeVersion": 1.1,
+      "position": [
+        160,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "model": "qwen3-embedding:latest"
+      },
+      "id": "embeddings-ollama",
+      "name": "Embeddings Ollama",
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOllama",
+      "typeVersion": 1,
+      "position": [
+        160,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.output }}",
+              "rightValue": "NEED_HUMAN",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            },
+            {
+              "id": "c2",
+              "leftValue": "={{ $json.output }}",
+              "rightValue": "ไม่มีข้อมูล",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            },
+            {
+              "id": "c3",
+              "leftValue": "={{ $json.output }}",
+              "rightValue": "ไม่ได้ให้ข้อมูล",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            },
+            {
+              "id": "c4",
+              "leftValue": "={{ $json.output }}",
+              "rightValue": "ไม่สามารถ",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            },
+            {
+              "id": "c5",
+              "leftValue": "={{ $json.output }}",
+              "rightValue": "ไม่พบข้อมูล",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            },
+            {
+              "id": "c6",
+              "leftValue": "={{ $json.output }}",
+              "rightValue": "ไม่ได้ระบุ",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            },
+            {
+              "id": "c7",
+              "leftValue": "={{ $json.output }}",
+              "rightValue": "I don't have",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            },
+            {
+              "id": "c8",
+              "leftValue": "={{ $json.output }}",
+              "rightValue": "does not provide",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            },
+            {
+              "id": "c9",
+              "leftValue": "={{ $json.output }}",
+              "rightValue": "no information",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "check-need-human",
+      "name": "Check Need Human",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        400,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "schema": {
+          "__rl": true,
+          "mode": "name",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "mode": "name",
+          "value": "cs_audit"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "tenant": "={{ $('Normalize Input').item.json.tenant }}",
+            "question": "={{ $('Normalize Input').item.json.question }}",
+            "draft_answer": "={{ $('AI Agent').item.json.output }}",
+            "approved": false,
+            "approver_email": ""
+          }
+        },
+        "options": {}
+      },
+      "id": "log-escalation",
+      "name": "Log Escalation",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        640,
+        -160
+      ],
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "e1",
+              "name": "output",
+              "value": "ขออภัยครับ/ค่ะ คำถามนี้เกินขอบเขตข้อมูลที่มี ได้ส่งต่อให้เจ้าหน้าที่แล้ว จะติดต่อกลับโดยเร็วที่สุด\n\n(Escalated to a human agent.)",
+              "type": "string"
+            },
+            {
+              "id": "e2",
+              "name": "status",
+              "value": "escalated",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": false,
+        "options": {}
+      },
+      "id": "respond-escalated",
+      "name": "Respond Escalated",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        880,
+        -160
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "sendAndWait",
+        "sendTo": "APPROVER_EMAIL_PLACEHOLDER",
+        "subject": "=[NNPC CS] Approval needed — {{ $('Normalize Input').item.json.tenant }}",
+        "message": "=คำถามจากลูกค้า / Customer question:\n\n{{ $('Normalize Input').item.json.question }}\n\n--- ร่างคำตอบ / Drafted answer ---\n\n{{ $('AI Agent').item.json.output }}\n\nกด Approve เพื่อส่งคำตอบนี้ให้ลูกค้า",
+        "approvalOptions": {
+          "values": {
+            "approvalType": "double"
+          }
+        },
+        "options": {}
+      },
+      "id": "gmail-approval",
+      "name": "Gmail Approval",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        640,
+        160
+      ],
+      "disabled": true,
+      "webhookId": "nnpc-cs-approval"
+    },
+    {
+      "parameters": {
+        "schema": {
+          "__rl": true,
+          "mode": "name",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "mode": "name",
+          "value": "cs_audit"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "tenant": "={{ $('Normalize Input').item.json.tenant }}",
+            "question": "={{ $('Normalize Input').item.json.question }}",
+            "draft_answer": "={{ $('AI Agent').item.json.output }}",
+            "approved": true,
+            "approver_email": "APPROVER_EMAIL_PLACEHOLDER"
+          }
+        },
+        "options": {}
+      },
+      "id": "log-approval",
+      "name": "Log Approval",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        880,
+        160
+      ],
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "o1",
+              "name": "output",
+              "value": "={{ $('AI Agent').item.json.output }}",
+              "type": "string"
+            },
+            {
+              "id": "o2",
+              "name": "status",
+              "value": "approved",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": false,
+        "options": {}
+      },
+      "id": "respond-approved",
+      "name": "Respond Approved",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1120,
+        160
+      ]
+    }
+  ],
+  "connections": {
+    "Chat Trigger": {
+      "main": [
+        [
+          {
+            "node": "Normalize Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Normalize Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Input": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Check Need Human",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Need Human": {
+      "main": [
+        [
+          {
+            "node": "Log Escalation",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Gmail Approval",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Escalation": {
+      "main": [
+        [
+          {
+            "node": "Respond Escalated",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail Approval": {
+      "main": [
+        [
+          {
+            "node": "Log Approval",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Approval": {
+      "main": [
+        [
+          {
+            "node": "Respond Approved",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Qdrant Vector Store": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings Ollama": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Qdrant Vector Store",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Typhoon2 (server)": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {}
+}
